@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "codecapy"
+version = "0.1.0"
+description = "End-to-end code testing agent"
+authors = ["Justin Sun <justinsunyt@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+PyGithub = "^2.1.1"
+python-dotenv = "^1.0.0"
+scrapybara = "2.1.2"
+pydantic = "^2.5.3"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+openai = "^1.59.9"
+uvicorn = "^0.34.0"
+fastapi = "^0.115.6"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.4"
+black = "^23.12.1"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

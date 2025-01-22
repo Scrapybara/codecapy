@@ -1,0 +1,209 @@
+ You are working with Scrapybara, a Python SDK for deploying and managing remote desktop instances for AI agents. Use this guide to properly interact with the SDK.
+
+CORE SDK USAGE:
+
+- Initialize client: from scrapybara import Scrapybara; client = Scrapybara(api_key="KEY")
+- Instance lifecycle:
+    instance = client.start(instance_type="small", timeout_hours=1)
+    instance.pause() # Pause to save resources
+    instance.resume(timeout_hours=1) # Resume work
+    instance.stop() # Terminate and clean up
+
+CORE INSTANCE OPERATIONS:
+
+- Screenshots: instance.screenshot().base_64_image
+- Bash commands: instance.bash(command="ls -la")
+- Mouse control: instance.computer(action="mouse_move", coordinate=[x, y])
+- Click actions: instance.computer(action="left_click")
+- File operations: instance.file.read(path="/path/file"), instance.file.write(path="/path/file", content="data")
+
+ACT SDK (Primary Focus):
+
+- Purpose: Enables building computer use agents with unified tools and model interfaces
+- Core components:
+
+1. Model: Handles LLM integration (currently Anthropic)
+    from scrapybara.anthropic import Anthropic
+    model = Anthropic() # Or model = Anthropic(api_key="KEY") for own key
+
+2. Tools: Interface for computer interactions
+    - BashTool: Run shell commands
+    - ComputerTool: Mouse/keyboard control
+    - EditTool: File operations
+    - BrowserTool: Web automation via Playwright
+    tools = [
+        BashTool(instance),
+        ComputerTool(instance),
+        EditTool(instance),
+        BrowserTool(instance)
+    ]
+
+3. Prompt:
+    - system: system prompt, recommend to use SYSTEM_PROMPT
+    - prompt: simple user prompt
+    - messages: list of messages
+    - Only include either prompt or messages, not both
+
+response = client.act(
+    model=Anthropic(),
+    tools=tools,
+    system=SYSTEM_PROMPT,
+    prompt="Task",
+    on_step=handle_step
+)
+messages = response.messages
+steps = response.steps
+text = response.text
+output = response.output
+usage = response.usage
+
+MESSAGE HANDLING:
+
+- Response Structure: Messages are structured with roles (user/assistant/tool) and typed content
+- Content Types:
+- TextPart: Simple text content
+    TextPart(type="text", text="content")
+- ImagePart: Base64 or URL images
+    ImagePart(type="image", image="base64...", mime_type="image/png")
+- ToolCallPart: Tool invocations
+    ToolCallPart(
+        type="tool-call",
+        tool_call_id="id",
+        tool_name="bash",
+        args={"command": "ls"}
+    )
+- ToolResultPart: Tool execution results
+    ToolResultPart(
+        type="tool-result",
+        tool_call_id="id",
+        tool_name="bash",
+        result="output",
+        is_error=False
+    )
+
+STEP HANDLING:
+
+# Access step information in callbacks
+def handle_step(step: Step):
+    print(f"Text: {step.text}")
+    if step.tool_calls:
+        for call in step.tool_calls:
+            print(f"Tool: {call.tool_name}")
+    if step.tool_results:
+        for result in step.tool_results:
+            print(f"Result: {result.result}")
+    print(f"Tokens: {step.usage.total_tokens if step.usage else 'N/A'}")
+
+STRUCTURED OUTPUT:
+Use the schema parameter to define a desired structured output. The response's output field will contain the validated typed data returned by the model.
+
+class HNSchema(BaseModel):
+    class Post(BaseModel):
+        title: str
+        url: str 
+        points: int
+    posts: List[Post]
+
+response = client.act(
+    model=Anthropic(),
+    tools=tools,
+    schema=HNSchema,
+    system=SYSTEM_PROMPT,
+    prompt="Get the top 10 posts on Hacker News",
+)
+posts = response.output.posts
+
+TOKEN USAGE:
+
+- Track token usage through TokenUsage objects
+- Fields: prompt_tokens, completion_tokens, total_tokens
+- Available in both Step and ActResponse objects
+
+Here's a brief example of how to use the Scrapybara SDK:
+
+from scrapybara import Scrapybara
+from scrapybara.anthropic import Anthropic
+from scrapybara.prompts import SYSTEM_PROMPT
+from scrapybara.tools import BashTool, ComputerTool, EditTool, BrowserTool
+
+client = Scrapybara()
+instance = client.start()
+instance.browser.start()
+
+response = client.act(
+    model=Anthropic(),
+    tools=[
+        BashTool(instance),
+        ComputerTool(instance),
+        EditTool(instance),
+        BrowserTool(instance),
+    ],
+    system=SYSTEM_PROMPT,
+    prompt="Go to the YC website and fetch the HTML",
+    on_step=lambda step: print(f"{step}\n"),
+)
+messages = response.messages
+steps = response.steps
+text = response.text
+output = response.output
+usage = response.usage
+
+instance.browser.stop()
+instance.stop()
+
+EXECUTION PATTERNS:
+
+1. Basic agent execution:
+
+response = client.act(
+    model=Anthropic(),
+    tools=tools,
+    system="System context here",
+    prompt="Task description"
+)
+
+2. Browser automation:
+
+cdp_url = instance.browser.start().cdp_url
+auth_state_id = instance.browser.save_auth(name="default").auth_state_id  # Save auth
+instance.browser.authenticate(auth_state_id=auth_state_id)  # Reuse auth
+
+3. File management:
+
+instance.file.write("/tmp/data.txt", "content")
+content = instance.file.read("/tmp/data.txt").content
+
+
+IMPORTANT GUIDELINES:
+
+- Always stop instances after use to prevent unnecessary billing
+- Use async client (AsyncScrapybara) for non-blocking operations
+- Handle API errors with try/except ApiError blocks
+- Default timeout is 60s; customize with timeout parameter or request_options
+- Instance auto-terminates after 1 hour by default
+- For browser operations, always start browser before BrowserTool usage
+- Prefer bash commands over GUI interactions for launching applications
+
+ERROR HANDLING:
+
+from scrapybara.core.api_error import ApiError
+try:
+    client.start()
+except ApiError as e:
+    print(f"Error {e.status_code}: {e.body}")
+
+BROWSER TOOL OPERATIONS:
+
+- Required setup:
+cdp_url = instance.browser.start().cdp_url
+tools = [BrowserTool(instance)]
+- Commands: go_to, get_html, evaluate, click, type, screenshot, get_text, get_attribute
+- Always handle browser authentication states appropriately
+
+ENV VARIABLES & CONFIGURATION:
+
+- Set env vars: instance.env.set({"API_KEY": "value"})
+- Get env vars: vars = instance.env.get().variables
+- Delete env vars: instance.env.delete(["VAR_NAME"])
+
+Remember to handle resources properly and implement appropriate error handling in your code. This SDK is primarily designed for AI agent automation tasks, so structure your code accordingly.
