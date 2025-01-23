@@ -13,7 +13,15 @@ import os
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from openai import OpenAI
-from .prompts import TestCase, TestsSchema, SYSTEM_PROMPT, generate_test_prompt
+from .prompts import (
+    TestCase,
+    TestResult,
+    GenerateResponse,
+    GENERATE_SYSTEM_PROMPT,
+    SETUP_SYSTEM_PROMPT,
+    TEST_SYSTEM_PROMPT,
+    generate_test_prompt,
+)
 
 load_dotenv()
 
@@ -85,7 +93,7 @@ def verify_github_webhook(request: Request, payload: bytes = None):
         raise HTTPException(status_code=401, detail="Invalid signature")
 
 
-async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
+async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
     """Process PR changes and run tests using Scrapybara."""
     # Add initial comment that we're processing the PR
     add_pr_comment(pr, "🔍 Analyzing PR changes and preparing to run tests...")
@@ -143,76 +151,6 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
 
         file_tree = get_tree_content(repo)
 
-        # Get summaries of largest/most important files
-        important_files = []
-        for content in repo.get_contents(""):
-            if content.type == "file" and content.name.endswith(
-                (
-                    ".py",
-                    ".js",
-                    ".ts",
-                    ".tsx",
-                    ".go",
-                    ".rs",
-                    ".jsx",
-                    ".vue",
-                    ".svelte",
-                    ".java",
-                    ".kt",
-                    ".rb",
-                    ".php",
-                    ".cs",
-                    ".cpp",
-                    ".c",
-                    ".h",
-                    ".hpp",
-                    ".scala",
-                    ".swift",
-                    ".m",
-                    ".mm",
-                    ".dart",
-                    ".ex",
-                    ".exs",
-                    ".erl",
-                    ".hs",
-                    ".fs",
-                    ".fsx",
-                    ".ml",
-                    ".mli",
-                    ".clj",
-                    ".cljc",
-                    ".cljs",
-                    ".html",
-                    ".htm",
-                    ".css",
-                    ".scss",
-                    ".sass",
-                    ".less",
-                    ".styl",
-                )
-            ):
-                file_content = content.decoded_content.decode()
-                line_count = len(file_content.splitlines())
-                if line_count > 500:  # Only summarize files with >500 lines
-                    summary_completion = openai_client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "You are a code analysis expert. Provide a brief 1-2 sentence summary of this file's purpose and main functionality.",
-                            },
-                            {
-                                "role": "user",
-                                "content": f"File: {content.name}\n\nContent:\n{file_content}",
-                            },
-                        ],
-                        max_tokens=150,
-                    )
-                    summary = summary_completion.choices[0].message.content
-                    important_files.append(
-                        f"File: {content.name}\nSummary: {summary}\n"
-                    )
-
         # Generate the test prompt with enhanced context
         test_prompt = generate_test_prompt(
             pr_title=pr_title,
@@ -220,7 +158,6 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
             file_changes=file_changes_str,
             readme_content=readme_content,
             file_tree=file_tree,
-            important_files="\n".join(important_files),
         )
 
         print(test_prompt)
@@ -229,18 +166,20 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
         completion = openai_client.beta.chat.completions.parse(
             model="o1-2024-12-17",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": GENERATE_SYSTEM_PROMPT},
                 {"role": "user", "content": test_prompt},
             ],
-            response_format=TestsSchema,
+            response_format=GenerateResponse,
         )
 
         # Parse the test cases
-        tests_parsed = TestsSchema.model_validate(completion.choices[0].message.parsed)
+        generate_response = GenerateResponse.model_validate(
+            completion.choices[0].message.parsed
+        )
 
         # Format test results for the comment
         test_details = []
-        for i, test in enumerate(tests_parsed.tests, 1):
+        for i, test in enumerate(generate_response.tests, 1):
             test_details.append(
                 f"""
 ### {i}: {test.name} {'❗️' if test.priority == 'low' else '❗️❗️' if test.priority == 'medium' else '❗️❗️❗️'}
@@ -261,10 +200,12 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
         comment = f"""# CodeCapy Review ₍ᐢ•(ܫ)•ᐢ₎
 - PR: #{pr.number}
 - Commit: {pr.head.sha[:7]}
-- Coverage Focus: {', '.join(tests_parsed.coverage_focus)}
 
 ## Test Strategy
-{tests_parsed.test_strategy}
+{generate_response.test_strategy}
+
+## Setup Instructions
+{generate_response.setup_instructions}
 
 ## Generated Test Cases
 {chr(10).join(test_details)}
@@ -277,7 +218,7 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
 ```
 </details>"""
         add_pr_comment(pr, comment)
-        return tests_parsed.tests
+        return generate_response
 
     except Exception as e:
         error_comment = f"""❌ Error while analyzing PR and generating tests:
@@ -290,11 +231,171 @@ async def generate_tests(pr: PullRequest) -> Optional[List[TestCase]]:
         return None
 
 
-async def execute_tests(pr: PullRequest, tests: List[TestCase]):
-    """Execute the generated UI tests and report results."""
-    add_pr_comment(pr, "🚀 Running tests...")
+class SetupSchema(BaseModel):
+    setup_success: bool
+    setup_error: Optional[str]
 
-    # TODO: Implement actual test execution logic
+
+async def execute_tests(pr: PullRequest, gr: GenerateResponse, installation_id: int):
+    """Execute the generated UI tests and report results."""
+    add_pr_comment(pr, "🚀 Launching Scrapybara desktop...")
+
+    scrapybara_client = Scrapybara(api_key=SCRAPYBARA_API_KEY)
+    instance = None
+
+    try:
+        instance = scrapybara_client.start(instance_type="large")
+
+        # Get repo details and access token
+        repo_name = pr.base.repo.full_name
+        access_token = get_installation_access_token(installation_id)
+        repo_url = f"https://x-access-token:{access_token}@github.com/{repo_name}.git"
+        branch = pr.head.ref
+
+        # Clone the repository
+        repo_path = f"/home/scrapybara/Documents/{repo_name}"
+        instance.bash(command=f"git clone {repo_url} {repo_path}")
+        instance.bash(command=f"cd {repo_path} && git checkout {branch}")
+
+        # Get GitHub variables and set them in the environment
+        variables = {}
+        try:
+            repo_vars = pr.base.repo.get_variables()
+            for var in repo_vars:
+                variables[var.name] = var.value
+            instance.env.set(variables=variables)
+        except Exception as e:
+            add_pr_comment(
+                pr,
+                f"""⚠️ Error fetching GitHub variables, continuing setup: 
+```
+{str(e)}
+```""",
+            )
+
+        # Get .capy content
+        try:
+            setup_instructions = pr.base.repo.get_contents(
+                ".capy"
+            ).decoded_content.decode()
+        except Exception as e:
+            setup_instructions = gr.setup_instructions
+
+        # Run setup
+        add_pr_comment(pr, "🔧 Setting up test environment...")
+        setup_response = scrapybara_client.act(
+            model=Anthropic(),
+            tools=[
+                BashTool(instance),
+                ComputerTool(instance),
+                EditTool(instance),
+                BrowserTool(instance),
+            ],
+            system=SETUP_SYSTEM_PROMPT,
+            prompt=f"""Here are the setup instructions:
+
+{setup_instructions}
+
+Available variables that have been set in the environment:
+{chr(10).join(f'- {key}: {variables[key]}' for key in variables.keys())}
+
+Please follow these instructions to set up the test environment in {repo_path}. The variables are already available in the environment, but you may need to create a .env file if the application requires it.""",
+            schema=SetupSchema,
+            on_step=lambda step: print(step),
+        )
+
+        if not setup_response.output.setup_success:
+            add_pr_comment(
+                pr,
+                f"""❌ Error setting up test environment: 
+```
+{setup_response.output.setup_error}
+```""",
+            )
+            return
+
+        # Run tests
+        test_results = []
+        for i, test in enumerate(gr.tests, 1):
+            add_pr_comment(pr, f"🧪 Running test {i}: {test.name}...")
+
+            test_response = scrapybara_client.act(
+                model=Anthropic(),
+                tools=[
+                    BashTool(instance),
+                    ComputerTool(instance),
+                    EditTool(instance),
+                    BrowserTool(instance),
+                ],
+                system=TEST_SYSTEM_PROMPT,
+                prompt=f"""Please execute the following test:
+
+Test Name: {test.name}
+Description: {test.description}
+
+Prerequisites:
+{chr(10).join(f'- {prereq}' for prereq in test.prerequisites)}
+
+Steps to Execute:
+{chr(10).join(f'{i+1}. {step}' for i, step in enumerate(test.steps))}
+
+Expected Result:
+{test.expected_result}
+
+Priority: {test.priority}
+
+Please follow these steps exactly, take screenshots at key moments, and verify the results carefully.""",
+                schema=TestResult,
+                on_step=lambda step: print(step.text),
+            )
+
+            # Format the result comment
+            if test_response.success:
+                result_comment = f"""✅ Test {i} Passed: {test.name}
+
+{test_response.notes if test_response.notes else ""}
+
+Screenshots taken during test:
+"""
+                for j, screenshot in enumerate(test_response.screenshots, 1):
+                    result_comment += f"\nScreenshot {j}:\n<img src='data:image/png;base64,{screenshot}' />\n"
+            else:
+                result_comment = f"""❌ Test {i} Failed: {test.name}
+
+Error: {test_response.error}
+{test_response.notes if test_response.notes else ""}
+
+Screenshots of failure:
+"""
+                for j, screenshot in enumerate(test_response.screenshots, 1):
+                    result_comment += f"\nScreenshot {j}:\n<img src='data:image/png;base64,{screenshot}' />\n"
+
+            add_pr_comment(pr, result_comment)
+            test_results.append(test_response)
+
+        # Summarize all test results
+        passed_tests = sum(1 for r in test_results if r.success)
+        total_tests = len(test_results)
+
+        summary = f"""# Test Execution Summary 📊
+
+{passed_tests}/{total_tests} tests passed
+
+{'🎉 All tests passed!' if passed_tests == total_tests else '⚠️ Some tests failed. Please check the individual test results above for details.'}"""
+
+        add_pr_comment(pr, summary)
+
+    except Exception as e:
+        add_pr_comment(
+            pr,
+            f"""❌ Error during test execution: 
+```
+{str(e)}
+```""",
+        )
+    # finally:
+    #     if instance:
+    #         instance.stop()
 
 
 @app.post("/webhooks/github")
@@ -314,8 +415,10 @@ async def github_webhook(request: Request):
                     status_code=400, detail="No installation found in webhook payload"
                 )
 
+            installation_id = data.installation["id"]
+
             # Get installation access token
-            access_token = get_installation_access_token(data.installation["id"])
+            access_token = get_installation_access_token(installation_id)
 
             # Initialize GitHub client with installation token
             g = Github(access_token)
@@ -325,7 +428,7 @@ async def github_webhook(request: Request):
             # Process PR changes
             tests = await generate_tests(pr)
             if tests:
-                await execute_tests(pr, tests)
+                await execute_tests(pr, tests, installation_id)
 
     return {"status": "ok"}
 

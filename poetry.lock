@@ -1199,13 +1199,13 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "scrapybara"
-version = "2.1.2"
+version = "2.1.3"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "scrapybara-2.1.2-py3-none-any.whl", hash = "sha256:e68d920fa9cb3505a948211eee6f003c2a700d15bebd749e44f0e3f9b5236d62"},
-    {file = "scrapybara-2.1.2.tar.gz", hash = "sha256:252aaa47193afd492b1a035eb541dec7400c6b981d74e717a2c9883a342ff65b"},
+    {file = "scrapybara-2.1.3-py3-none-any.whl", hash = "sha256:a8ec7514614a66dd30a705110adecdfe717c5ba235c293f69cfd85e6f8f92710"},
+    {file = "scrapybara-2.1.3.tar.gz", hash = "sha256:f815c2611316afea550571176ac9b4f732441a4a3265068f8d71a89916e1aa5d"},
 ]
 
 [package.dependencies]
@@ -1456,4 +1456,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "b5302605d49229ca19e133aa7e125aeb182766a1bab04a2da70ea696a77f4abe"
+content-hash = "2cfe9ec987286460d93e8a82f49b317f81fcf9d1a3a5461a07e93de82a929510"
