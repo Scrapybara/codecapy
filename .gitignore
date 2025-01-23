@@ -1,4 +1,5 @@
-.env
-private-key.pem
 __pycache__/
+.env
+.venv/
+private-key.pem
 .DS_Store

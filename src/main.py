@@ -4,7 +4,7 @@ from github import Github, GithubIntegration
 from github.PullRequest import PullRequest
 from scrapybara import Scrapybara
 from scrapybara.anthropic import Anthropic
-from scrapybara.tools import ComputerTool, BashTool, EditTool, BrowserTool
+from scrapybara.tools import ComputerTool, BashTool, EditTool
 from pydantic import BaseModel
 from typing import List, Optional
 import hmac
@@ -289,7 +289,6 @@ async def execute_tests(pr: PullRequest, gr: GenerateResponse, installation_id: 
                 BashTool(instance),
                 ComputerTool(instance),
                 EditTool(instance),
-                BrowserTool(instance),
             ],
             system=SETUP_SYSTEM_PROMPT,
             prompt=f"""Here are the setup instructions:
@@ -325,7 +324,6 @@ Please follow these instructions to set up the test environment in {repo_path}. 
                     BashTool(instance),
                     ComputerTool(instance),
                     EditTool(instance),
-                    BrowserTool(instance),
                 ],
                 system=TEST_SYSTEM_PROMPT,
                 prompt=f"""Please execute the following test:
