@@ -1,4 +1,4 @@
-__pycache__/
+**/__pycache__/
 .env
 .venv/
 private-key.pem
