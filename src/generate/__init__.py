@@ -2,12 +2,49 @@ from typing import Optional
 from openai import OpenAI
 from github.PullRequest import PullRequest
 import yaml
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from src.models import CapyConfig
 from ..config import OPENAI_API_KEY
 from ..github import add_pr_comment, edit_pr_comment, get_tree_content
-from .models import GenerateResponse
-from .prompts import GENERATE_SYSTEM_PROMPT, generate_test_prompt
+from .models import GenerateResponse, FileAnalysisResponse
+from .prompts import (
+    GENERATE_SYSTEM_PROMPT,
+    generate_test_prompt,
+    ANALYZE_SYSTEM_PROMPT,
+    generate_file_analysis_prompt,
+)
+
+
+async def summarize_file(repo, file, openai_client, pr):
+    """Summarize a single file asynchronously."""
+    try:
+        content = repo.get_contents(file.path, ref=pr.head.ref)
+        if isinstance(content, list):
+            return f"## {file.path}\nError: File is a directory\n"
+        file_content = content.decoded_content.decode()
+
+        # Summarize file with 4o-mini
+        completion = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert code analyst. Provide a concise 2 sentence summary of this file's purpose and key functionality.",
+                },
+                {
+                    "role": "user",
+                    "content": f"File: {file.path}\n\nContent:\n{file_content}",
+                },
+            ],
+        )
+
+        summary = completion.choices[0].message.content
+        print(summary)
+        return f"## {file.path}\nReason for importance: {file.reason}\nSummary: {summary}\n"
+    except Exception as e:
+        return f"## {file.path}\nError reading file: {str(e)}\n"
 
 
 async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
@@ -35,6 +72,34 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
         # Get repository context
         repo = pr.base.repo
 
+        # Get file tree and analyze important files
+        file_tree = get_tree_content(repo)
+
+        # Analyze file tree with 4o
+        analyze_completion = openai_client.beta.chat.completions.parse(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": ANALYZE_SYSTEM_PROMPT},
+                {"role": "user", "content": generate_file_analysis_prompt(file_tree)},
+            ],
+            response_format=FileAnalysisResponse,
+        )
+
+        file_analysis = FileAnalysisResponse.model_validate(
+            analyze_completion.choices[0].message.parsed
+        )
+        print(file_analysis)
+
+        # Get content and summarize important files in parallel
+        tasks = [
+            summarize_file(repo, file, openai_client, pr)
+            for file in file_analysis.files
+        ]
+        important_file_summaries = await asyncio.gather(*tasks)
+
+        # Join all summaries
+        codebase_context = "\n".join(important_file_summaries)
+
         # Get README content
         try:
             content = repo.get_contents("README.md", ref=pr.head.ref)
@@ -43,9 +108,6 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
             readme_content = content.decoded_content.decode()
         except Exception as e:
             readme_content = f"Error reading README: {str(e)}"
-
-        # Get file tree
-        file_tree = get_tree_content(repo)
 
         # Get capy.yaml content
         try:
@@ -65,11 +127,12 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
             readme_content=readme_content,
             file_tree=file_tree,
             capy_config=capy_config,
+            codebase_context=codebase_context,
         )
 
-        # Generate test cases
-        completion = openai_client.beta.chat.completions.parse(
-            model="o1-2024-12-17",
+        # Generate test cases with o1
+        generate_completion = openai_client.beta.chat.completions.parse(
+            model="o1",
             messages=[
                 {"role": "system", "content": GENERATE_SYSTEM_PROMPT},
                 {"role": "user", "content": test_prompt},
@@ -79,7 +142,7 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
 
         # Parse the test cases
         generate_response = GenerateResponse.model_validate(
-            completion.choices[0].message.parsed
+            generate_completion.choices[0].message.parsed
         )
 
         # Format test results for the comment
@@ -122,7 +185,8 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
 {file_changes_str}
 ```
 </details>"""
-        edit_pr_comment(pr, summary_comment_id, comment)
+        if summary_comment_id:
+            edit_pr_comment(pr, summary_comment_id, comment)
         return generate_response
 
     except Exception as e:
@@ -132,5 +196,6 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
 {str(e)}
 ```
 """
-        edit_pr_comment(pr, summary_comment_id, error_comment)
+        if summary_comment_id:
+            edit_pr_comment(pr, summary_comment_id, error_comment)
         return None

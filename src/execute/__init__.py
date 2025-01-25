@@ -1,3 +1,4 @@
+import time
 from typing import List, Optional
 import yaml
 from github.PullRequest import PullRequest
@@ -22,12 +23,6 @@ def format_agent_steps(steps: List[Step]) -> str:
     formatted_steps = []
 
     for step in steps:
-        # Skip steps that have a structured_output tool call
-        # if step.tool_calls and any(
-        #     call.tool_name == "structured_output" for call in step.tool_calls
-        # ):
-        #     continue
-
         # Format tool calls
         tool_call_lines = []
         if step.tool_calls:
@@ -261,25 +256,67 @@ Please follow these instructions to set up the test environment in {repo_path}. 
                             setup_error = instruction_response.output.setup_error
                             break
 
-                if not setup_success:
-                    add_pr_comment(
+                    elif step.type == "wait":
+                        if step.seconds:
+                            time.sleep(step.seconds)
+                        else:
+                            time.sleep(10)
+
+                        # Add step to comment
+                        handle_setup_step(
+                            Step(text=f"Waiting {step.seconds or 10} seconds"),
+                            setup_steps,
+                            pr,
+                            setup_comment_id,
+                        )
+
+                if not setup_success and setup_comment_id:
+                    edit_pr_comment(
                         pr,
+                        setup_comment_id,
                         f"""❌ Error setting up test environment: 
 ```
 {setup_error}
-```""",
+```
+
+<details>
+<summary>Agent Steps</summary>
+
+{format_agent_steps(setup_steps)}
+</details>""",
                     )
                     return
 
             except Exception as e:
-                add_pr_comment(
-                    pr,
-                    f"""❌ Error setting up test environment: 
+                if setup_comment_id:
+                    edit_pr_comment(
+                        pr,
+                        setup_comment_id,
+                        f"""❌ Error setting up test environment: 
 ```
 {str(e)}
-```""",
-                )
+```
+
+<details>
+<summary>Agent Steps</summary>
+
+{format_agent_steps(setup_steps)}
+</details>""",
+                    )
                 return
+
+        if setup_comment_id:
+            edit_pr_comment(
+                pr,
+                setup_comment_id,
+                f"""✅ Setup complete! Running tests...
+
+<details>
+<summary>Agent Steps</summary>
+
+{format_agent_steps(setup_steps)}
+</details>""",
+            )
 
         # Run tests
         test_results = []
@@ -323,13 +360,23 @@ Please follow these steps exactly, take screenshots at key moments, and verify t
                 result_comment = f"""✅ Test {i} Passed: {test.name}
 
 {test_response.output.notes if test_response.output.notes else ""}
-"""
+
+<details>
+<summary>Agent Steps</summary>
+
+{format_agent_steps(test_steps)}
+</details>"""
             else:
                 result_comment = f"""❌ Test {i} Failed: {test.name}
 
 Error: {test_response.output.error}
 {test_response.output.notes if test_response.output.notes else ""}
-"""
+
+<details>
+<summary>Agent Steps</summary>
+
+{format_agent_steps(test_steps)}
+</details>"""
 
             if test_comment_id:
                 edit_pr_comment(pr, test_comment_id, result_comment)

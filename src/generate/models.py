@@ -29,3 +29,12 @@ class GenerateResponse(BaseModel):
     setup_instructions: Optional[str] = Field(
         description="Instructions for setting up the test environment. Only provided when capy.yaml is not present."
     )
+
+
+class ImportantFile(BaseModel):
+    path: str = Field(description="The path to the file")
+    reason: str = Field(description="The reason the file is important")
+
+
+class FileAnalysisResponse(BaseModel):
+    files: List[ImportantFile]

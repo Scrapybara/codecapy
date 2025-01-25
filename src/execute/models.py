@@ -11,5 +11,5 @@ class TestResult(BaseModel):
 
 
 class SetupSchema(BaseModel):
-    setup_success: bool
-    setup_error: Optional[str]
+    setup_success: bool = Field(description="Whether the setup was successful")
+    setup_error: Optional[str] = Field(description="Error message if the setup failed")
