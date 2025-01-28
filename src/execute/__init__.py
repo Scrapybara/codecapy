@@ -12,9 +12,9 @@ from ..generate import GenerateResponse
 from ..models import CapyConfig
 from .models import TestResult, SetupSchema
 from .prompts import (
-    AUTO_SETUP_SYSTEM_PROMPT,
-    INSTRUCTION_SETUP_SYSTEM_PROMPT,
-    TEST_SYSTEM_PROMPT,
+    get_auto_setup_system_prompt,
+    get_instruction_setup_system_prompt,
+    get_test_system_prompt,
 )
 
 
@@ -169,7 +169,7 @@ async def execute_tests(pr: PullRequest, gr: GenerateResponse, access_token: str
                     ComputerTool(instance),
                     EditTool(instance),
                 ],
-                system=AUTO_SETUP_SYSTEM_PROMPT,
+                system=get_auto_setup_system_prompt(gr),
                 prompt=f"""Here are the setup instructions:
 
 {gr.setup_instructions}
@@ -244,7 +244,7 @@ Please follow these instructions to set up the test environment in {repo_path}. 
                                 ComputerTool(instance),
                                 EditTool(instance),
                             ],
-                            system=INSTRUCTION_SETUP_SYSTEM_PROMPT,
+                            system=get_instruction_setup_system_prompt(gr),
                             prompt=step.text,
                             schema=SetupSchema,
                             on_step=lambda step: handle_setup_step(
@@ -331,7 +331,7 @@ Please follow these instructions to set up the test environment in {repo_path}. 
                     ComputerTool(instance),
                     EditTool(instance),
                 ],
-                system=TEST_SYSTEM_PROMPT,
+                system=get_test_system_prompt(gr),
                 prompt=f"""Please execute the following test:
 
 Test Name: {test.name}
@@ -386,7 +386,7 @@ Error: {test_response.output.error}
         passed_tests = sum(1 for r in test_results if r.success)
         total_tests = len(test_results)
 
-        summary = f"""# Test Execution Summary 📊
+        summary = f"""# CodeCapy Test Results 📊
 
 {passed_tests}/{total_tests} tests passed
 

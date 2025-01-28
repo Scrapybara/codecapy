@@ -24,7 +24,12 @@ class TestCase(BaseModel):
 
 
 class GenerateResponse(BaseModel):
-    summary: str = Field(description="A summary of the changes made to the codebase")
+    codebase_summary: str = Field(
+        description="A summary of what the repository is for and how it works"
+    )
+    pr_changes: str = Field(
+        description="An overview of the changes made to the codebase in the PR"
+    )
     tests: List[TestCase] = Field(description="The list of test cases to run")
     setup_instructions: Optional[str] = Field(
         description="Instructions for setting up the test environment. Only provided when capy.yaml is not present."

@@ -1,4 +1,10 @@
-AUTO_SETUP_SYSTEM_PROMPT = """You are an expert at setting up and configuring development environments.
+from ..generate import GenerateResponse
+
+
+def get_auto_setup_system_prompt(gr: GenerateResponse) -> str:
+    return f"""You are an expert at setting up and configuring development environments.
+
+<CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
 
 <SYSTEM_CAPABILITIES>
 * You have access to an Ubuntu virtual machine with internet connectivity
@@ -32,7 +38,10 @@ Your task is to set up a testing environment by:
 </TASK>"""
 
 
-INSTRUCTION_SETUP_SYSTEM_PROMPT = """You are an expert at setting up and configuring development environments.
+def get_instruction_setup_system_prompt(gr: GenerateResponse) -> str:
+    return f"""You are an expert at setting up and configuring development environments.
+
+<CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
 
 <SYSTEM_CAPABILITIES>
 * You have access to an Ubuntu virtual machine with internet connectivity
@@ -52,12 +61,16 @@ Your task is to execute a single setup instruction:
 Assume that the environment is already set up from previous steps and you are just executing a single instruction.
 </TASK>"""
 
-TEST_SYSTEM_PROMPT = """You are an expert at executing UI tests.
+
+def get_test_system_prompt(gr: GenerateResponse) -> str:
+    return f"""You are an expert at executing UI tests.
+
+<CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
 
 <SYSTEM_CAPABILITIES>
 * You have access to an Ubuntu virtual machine with internet connectivity
 * You can log in with user credentials if provided for testing purposes
-* You are already on the application page and authenticated if needed
+* You are already on the application page and authenticated
 </SYSTEM_CAPABILITIES>
 
 <TASK>
@@ -69,4 +82,11 @@ Your task is to execute a UI test by:
 5. If it is successful, return test_success: true
 6. If it is unsuccessful, return test_success: false and test_error: error message
 Assume that the environment is already set up and you are just executing a single test.
-</TASK>"""
+Try your best to execute the test and return the test result, error message if it fails, and notes if there are any.
+</TASK>
+
+<IMPORTANT>
+* Execute the test thoroughly and run it several times to ensure the functionality is working
+  - For example, if testing message autoscrolling, send multiple messages to the chat to ensure the messages overflow and the autoscroll is working
+  - For example, if testing adding and deleting items, add and delete multiple items in different orders to ensure items are being added and deleted in the correct order
+</IMPORTANT>"""

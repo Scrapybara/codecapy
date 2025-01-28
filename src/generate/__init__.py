@@ -169,8 +169,11 @@ async def generate_tests(pr: PullRequest) -> Optional[GenerateResponse]:
 - PR: #{pr.number}
 - Commit: {pr.head.sha[:7]}
 
-## Summary
-{generate_response.summary}
+## Codebase Summary
+{generate_response.codebase_summary}
+
+## PR Changes
+{generate_response.pr_changes}
 
 ## Setup Instructions
 {"Fetched from capy.yaml" if capy_config else generate_response.setup_instructions}
