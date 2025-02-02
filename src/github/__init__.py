@@ -6,22 +6,14 @@ from fastapi import HTTPException, Request
 from github import Github, GithubIntegration
 from github.PullRequest import PullRequest
 from github.IssueComment import IssueComment
-from ..config import GITHUB_WEBHOOK_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY_PATH
-
-
-def get_github_private_key() -> str:
-    """Get GitHub private key from file."""
-    if not GITHUB_PRIVATE_KEY_PATH or not os.path.exists(GITHUB_PRIVATE_KEY_PATH):
-        raise ValueError("GitHub private key file not found at specified path")
-    with open(GITHUB_PRIVATE_KEY_PATH, "r") as f:
-        return f.read().strip()
+from ..config import GITHUB_WEBHOOK_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY
 
 
 def get_github_integration() -> GithubIntegration:
     """Create GitHub Integration instance."""
     return GithubIntegration(
         integration_id=GITHUB_APP_ID,
-        private_key=get_github_private_key(),
+        private_key=GITHUB_PRIVATE_KEY,
     )
 
 
