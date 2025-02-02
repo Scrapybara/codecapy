@@ -1,5 +1,6 @@
 **/__pycache__/
+**/.mypy_cache/
 .env
 .venv/
-private-key.pem
 .DS_Store
+keys/
