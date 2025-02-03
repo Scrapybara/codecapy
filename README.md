@@ -27,6 +27,26 @@
 
 <img src="images/github.png" alt="CodeCapy on GitHub" />
 
+## Installation
+
+- Connect to your GitHub account on the [CodeCapy dashboard](https://codecapy.ai)
+- Or install CodeCapy directly on [GitHub](https://github.com/apps/codecapyai)
+
+## Test Configuration
+
+You can configure test environment setup by adding a `capy.yaml` file to the root of your repository:
+
+```yaml
+steps:
+  - type: bash
+    command: "npm install"
+  - type: create-env
+  - type: instruction
+    text: "Set up the development environment"
+  - type: wait
+    seconds: 10
+```
+
 ## Roadmap
 
 - [ ] More generate models (Anthropic, Gemini, etc.)
@@ -34,7 +54,7 @@
 - [ ] Windows instance
 - [ ] MacOS instance
 
-## Setup
+## Local Development
 
 ### Prerequisites
 
@@ -154,28 +174,13 @@ poetry run uvicorn src.main:app --reload
 
 3. Install the GitHub App on your repositories
 
-## Test Configuration
+## License
 
-You can configure test execution behavior using a `capy.yaml` file in your repository:
-
-```yaml
-steps:
-  - type: bash
-    command: "npm install"
-  - type: create-env
-  - type: instruction
-    text: "Set up the development environment"
-  - type: wait
-    seconds: 10
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
 We <3 all contributions! Create an issue or submit a PR to get started, or join our [Discord](https://discord.gg/s4bPUVFXqA) to chat with us.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributors ✨
 
