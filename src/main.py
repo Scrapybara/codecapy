@@ -52,6 +52,16 @@ async def github_webhook(request: Request):
                 status_code=400, detail="No installation ID found in webhook payload"
             )
         installation_id = data.installation["id"]
+
+        # Skip access token retrieval for installation deletion
+        if event_type == "installation" and data.action in ["deleted", "suspend"]:
+            db_repos = get_repos_by_installation_id(installation_id)
+            if db_repos:
+                # Disconnect all stored repos for the given installation
+                removed_repo_ids = [repo["id"] for repo in db_repos]
+                disconnect_repositories(removed_repo_ids)
+            return {"status": "ok"}
+
         access_token = get_installation_access_token(installation_id)
         github = Github(access_token)
 
@@ -61,25 +71,10 @@ async def github_webhook(request: Request):
         installation = get_installation(installation_id)
         repos = installation.get_repos()
 
-        if data.action == "added":
+        if data.action in ["added", "unsuspend"]:
             # Add each repository to database
             for repo in repos:
                 upsert_repository(repo.raw_data, installation_id, True)
-        elif data.action == "removed":
-            # Get all repos from database for this installation
-            db_repos = get_repos_by_installation_id(installation_id)
-            if db_repos:
-                # Get current repo IDs from GitHub
-                current_repo_ids = [repo.id for repo in repos]
-                # Find repos that are in DB but no longer in GitHub
-                removed_repo_ids = [
-                    repo["id"]
-                    for repo in db_repos
-                    if repo["id"] not in current_repo_ids
-                ]
-                # Disconnect removed repos
-                if removed_repo_ids:
-                    disconnect_repositories(removed_repo_ids)
 
     # Handle repository events
     elif event_type == "installation_repositories":
