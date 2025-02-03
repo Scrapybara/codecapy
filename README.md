@@ -19,7 +19,7 @@
 
 ## How CodeCapy works
 
-- Install CodeCapy on your GitHub repository
+- [Install](#get-started) CodeCapy on your GitHub repository
 - CodeCapy automatically detects new PRs
 - Generates natural language end-to-end UI tests based on PR changes using OpenAI models
 - Executes tests in isolated Scrapybara VMs using Anthropic's Claude Computer Use capabilities
@@ -27,7 +27,7 @@
 
 <img src="images/github.png" alt="CodeCapy on GitHub" />
 
-## Installation
+## Get Started
 
 - Connect to your GitHub account on the [CodeCapy dashboard](https://codecapy.ai)
 - Or install CodeCapy directly on [GitHub](https://github.com/apps/codecapyai)
