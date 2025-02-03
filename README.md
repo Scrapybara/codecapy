@@ -63,7 +63,8 @@ steps:
 - A GitHub account with permissions to create GitHub Apps
 - Scrapybara API key
 - OpenAI API key (for test generation)
-- Anthropic API key (for test execution)
+- Anthropic API key (for test execution, optional)
+- Supabase DB (optional)
 
 ### Installation
 
@@ -104,6 +105,7 @@ Edit `.env` with your:
 - Scrapybara API Key
 - OpenAI API Key
 - Anthropic API Key (optional, will use Scrapybara agent credit if not provided)
+- Supabase URL and Key (optional, will not store any data if not provided)
 
 ### Configuration
 

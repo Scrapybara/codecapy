@@ -4,8 +4,8 @@ from github.PullRequest import PullRequest
 import yaml
 import asyncio
 
-from src.models import CapyConfig
-from ..config import OPENAI_API_KEY
+from ..models import CapyConfig
+from ..config import settings
 from ..github import add_pr_comment, edit_pr_comment, get_tree_content
 from .models import GenerateResponse, FileAnalysisResponse
 from .config import GenerateConfig
@@ -19,7 +19,7 @@ from .prompts import (
 class GenerateAgent:
     def __init__(self, config: GenerateConfig):
         self.config = config
-        self.openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        self.openai_client = OpenAI(api_key=settings.openai_api_key)
 
     async def summarize_file(self, repo, file, pr):
         """Summarize a single file asynchronously."""

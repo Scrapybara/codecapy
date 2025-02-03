@@ -1,19 +1,18 @@
 from typing import Optional
-import os
 import hmac
 import hashlib
 from fastapi import HTTPException, Request
-from github import Github, GithubIntegration
+from github import GithubIntegration
 from github.PullRequest import PullRequest
 from github.IssueComment import IssueComment
-from ..config import GITHUB_WEBHOOK_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY
+from ..config import settings
 
 
 def get_github_integration() -> GithubIntegration:
     """Create GitHub Integration instance."""
     return GithubIntegration(
-        integration_id=GITHUB_APP_ID,
-        private_key=GITHUB_PRIVATE_KEY,
+        integration_id=settings.github_app_id,
+        private_key=settings.github_private_key,
     )
 
 
@@ -26,7 +25,7 @@ def get_installation_access_token(installation_id: int) -> str:
 
 def verify_github_webhook(request: Request, payload: Optional[bytes] = None) -> None:
     """Verify GitHub webhook signature."""
-    if not GITHUB_WEBHOOK_SECRET:
+    if not settings.github_webhook_secret:
         raise HTTPException(
             status_code=500, detail="GitHub webhook secret not configured"
         )
@@ -36,7 +35,9 @@ def verify_github_webhook(request: Request, payload: Optional[bytes] = None) -> 
         raise HTTPException(status_code=400, detail="No signature header found")
 
     hash_object = hmac.new(
-        GITHUB_WEBHOOK_SECRET.encode("utf-8"), msg=payload, digestmod=hashlib.sha256
+        settings.github_webhook_secret.encode("utf-8"),
+        msg=payload,
+        digestmod=hashlib.sha256,
     )
     expected_signature = f"sha256={hash_object.hexdigest()}"
 

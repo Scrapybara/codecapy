@@ -6,7 +6,7 @@ from scrapybara import Scrapybara
 from scrapybara.anthropic import Anthropic
 from scrapybara.tools import ComputerTool, BashTool, EditTool
 from scrapybara.client import Step, Instance
-from ..config import SCRAPYBARA_API_KEY, ANTHROPIC_API_KEY
+from ..config import settings
 from ..github import add_pr_comment, edit_pr_comment
 from ..generate import GenerateResponse
 from ..models import CapyConfig
@@ -33,7 +33,7 @@ from .comments import (
 class ExecuteAgent:
     def __init__(self, config: ExecuteConfig):
         self.config = config
-        self.scrapybara_client = Scrapybara(api_key=SCRAPYBARA_API_KEY)
+        self.scrapybara_client = Scrapybara(api_key=settings.scrapybara_api_key)
         self.instance: Optional[Instance] = None
 
     def handle_setup_step(
@@ -126,7 +126,8 @@ class ExecuteAgent:
                 # Use old setup method with natural language instructions
                 setup_response = self.scrapybara_client.act(
                     model=Anthropic(
-                        name=self.config.auto_setup.model, api_key=ANTHROPIC_API_KEY
+                        name=self.config.auto_setup.model,
+                        api_key=settings.anthropic_api_key,
                     ),
                     tools=[
                         BashTool(self.instance),
@@ -199,7 +200,7 @@ class ExecuteAgent:
                             instruction_response = self.scrapybara_client.act(
                                 model=Anthropic(
                                     name=self.config.instruction_setup.model,
-                                    api_key=ANTHROPIC_API_KEY,
+                                    api_key=settings.anthropic_api_key,
                                 ),
                                 tools=[
                                     BashTool(self.instance),
@@ -268,7 +269,7 @@ class ExecuteAgent:
                 test_response = self.scrapybara_client.act(
                     model=Anthropic(
                         name=self.config.execute_test.model,
-                        api_key=ANTHROPIC_API_KEY,
+                        api_key=settings.anthropic_api_key,
                     ),
                     tools=[
                         BashTool(self.instance),
