@@ -48,7 +48,8 @@ steps:
 
 #### `bash`
 
-Executes shell commands in the test environment. Useful for installing dependencies, building projects, or any other command-line operations. Use `{{repo_dir}}` to refer to the repository directory.
+Executes shell commands in the test environment. Useful for installing dependencies, building projects, or any other command-line operations. Use `{{repo_dir}}` to refer to the repository directory. Note that the agent will
+start at the home directory and you will have to cd into the repository directory.
 
 ```yaml
 - type: bash
