@@ -1,14 +1,22 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security import HTTPBearer
 from github import Github
+
+from .execute.config import ExecuteConfig
+from .generate.config import GenerateConfig
 from .github.models import GitHubWebhookPayload
 from .github import verify_github_webhook, get_installation_access_token
-from .generate import generate_tests
-from .execute import execute_tests
+from .generate import GenerateAgent
+from .execute import ExecuteAgent
 
 # Initialize FastAPI app
 app = FastAPI()
 security = HTTPBearer()
+
+# Initialize agents
+# Note: you can configure your agents here!
+generate_agent = GenerateAgent(config=GenerateConfig())
+execute_agent = ExecuteAgent(config=ExecuteConfig())
 
 
 @app.post("/webhooks/github")
@@ -34,14 +42,14 @@ async def github_webhook(request: Request):
         access_token = get_installation_access_token(installation_id)
 
         # Initialize GitHub client with installation token
-        g = Github(access_token)
-        repo = g.get_repo(data.repository["full_name"])
+        github = Github(access_token)
+        repo = github.get_repo(data.repository["full_name"])
         pr = repo.get_pull(data.pull_request["number"])
 
         # Process PR changes
-        tests = await generate_tests(pr)
+        tests = await generate_agent.generate_tests(pr)
         if tests:
-            await execute_tests(pr, tests, access_token)
+            await execute_agent.execute_tests(pr, tests, access_token)
 
     return {"status": "ok"}
 

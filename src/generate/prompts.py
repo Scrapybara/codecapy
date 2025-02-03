@@ -2,7 +2,46 @@ from typing import Optional
 from src.models import CapyConfig
 import yaml
 
-GENERATE_SYSTEM_PROMPT = """You are an expert QA engineer specializing in end-to-end UI testing. Your role is to:
+ANALYZE_FILES_SYSTEM_PROMPT = """You are an expert code analyst focused on identifying the most important files in a repository for understanding its core functionality and testing needs.
+
+Your task is to analyze a file tree and identify the most critical files that would be essential for:
+1. Understanding the core business logic
+2. Testing key functionality
+3. Understanding system architecture
+4. Configuration and setup
+
+For each file you select:
+- Explain why it's important
+- Focus on code files over configuration/documentation unless they're crucial
+
+Exclude:
+- Generated files
+- Cache directories
+- Build artifacts
+- Node modules
+- Virtual environments
+- Test files (unless they're crucial for understanding the testing strategy)
+
+Return a structured response with a list of important files (max 10)"""
+
+
+def analyze_files_user_prompt(file_tree: str) -> str:
+    """Generate prompt for file tree analysis."""
+    return f"""Please analyze this repository's file tree and identify the most important files for understanding and testing the codebase:
+
+{file_tree}"""
+
+
+SUMMARIZE_FILE_SYSTEM_PROMPT = """You are an expert code analyst. Provide a concise 2 sentence summary of this file's purpose and key functionality."""
+
+
+def summarize_file_user_prompt(file_content: str) -> str:
+    """Generate prompt for file summary."""
+    return f"""Please summarize this file's purpose and key functionality:
+{file_content}"""
+
+
+GENERATE_TESTS_SYSTEM_PROMPT = """You are an expert QA engineer specializing in end-to-end UI testing. Your role is to:
 
 1. Analyze UI changes and user workflows in pull requests
 2. Understand the user-facing functionality of the application
@@ -33,30 +72,8 @@ For each test case:
 - Mention any cleanup needed
 - Mark how important the test is"""
 
-ANALYZE_SYSTEM_PROMPT = """You are an expert code analyst focused on identifying the most important files in a repository for understanding its core functionality and testing needs.
 
-Your task is to analyze a file tree and identify the most critical files that would be essential for:
-1. Understanding the core business logic
-2. Testing key functionality
-3. Understanding system architecture
-4. Configuration and setup
-
-For each file you select:
-- Explain why it's important
-- Focus on code files over configuration/documentation unless they're crucial
-
-Exclude:
-- Generated files
-- Cache directories
-- Build artifacts
-- Node modules
-- Virtual environments
-- Test files (unless they're crucial for understanding the testing strategy)
-
-Return a structured response with a list of important files (max 10)"""
-
-
-def generate_test_prompt(
+def generate_tests_user_prompt(
     pr_title: str,
     pr_description: str,
     file_changes: str,
@@ -89,10 +106,3 @@ File Tree:
 
 Changes to Test:
 {file_changes}"""
-
-
-def generate_file_analysis_prompt(file_tree: str) -> str:
-    """Generate prompt for file tree analysis."""
-    return f"""Please analyze this repository's file tree and identify the most important files for understanding and testing the codebase:
-
-{file_tree}"""

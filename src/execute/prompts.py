@@ -1,7 +1,7 @@
 from ..generate import GenerateResponse
 
 
-def get_auto_setup_system_prompt(gr: GenerateResponse) -> str:
+def auto_setup_system_prompt(gr: GenerateResponse) -> str:
     return f"""You are an expert at setting up and configuring development environments.
 
 <CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
@@ -38,7 +38,20 @@ Your task is to set up a testing environment by:
 </TASK>"""
 
 
-def get_instruction_setup_system_prompt(gr: GenerateResponse) -> str:
+def auto_setup_user_prompt(
+    setup_instructions: str, variables: dict, repo_path: str
+) -> str:
+    return f"""Here are the setup instructions:
+
+{setup_instructions}
+
+Available variables that have been set in the environment:
+{chr(10).join(f'- {key}: {variables[key]}' for key in variables.keys())}
+
+Please follow these instructions to set up the test environment in {repo_path}. The variables are already available in the environment, but you may need to create a .env file if the application requires it."""
+
+
+def instruction_setup_system_prompt(gr: GenerateResponse) -> str:
     return f"""You are an expert at setting up and configuring development environments.
 
 <CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
@@ -54,15 +67,17 @@ def get_instruction_setup_system_prompt(gr: GenerateResponse) -> str:
 <TASK>
 Your task is to execute a single setup instruction:
 1. Read and understand the provided instruction
-2. Execute the instruction precisely using available tools
+2. Execute the instruction using available tools
 3. Verify the instruction was completed successfully
+  - If necessary, take multiple turns to wait for the instruction to complete
+  - If a process takes a while, it is not a failure, just wait for it to complete
 4. If successful, return setup_success: true
 5. If unsuccessful, return setup_success: false and setup_error: error message
 Assume that the environment is already set up from previous steps and you are just executing a single instruction.
 </TASK>"""
 
 
-def get_test_system_prompt(gr: GenerateResponse) -> str:
+def execute_test_system_prompt(gr: GenerateResponse) -> str:
     return f"""You are an expert at executing UI tests.
 
 <CODEBASE_SUMMARY>{gr.codebase_summary}</CODEBASE_SUMMARY>
@@ -90,3 +105,30 @@ Try your best to execute the test and return the test result, error message if i
   - For example, if testing message autoscrolling, send multiple messages to the chat to ensure the messages overflow and the autoscroll is working
   - For example, if testing adding and deleting items, add and delete multiple items in different orders to ensure items are being added and deleted in the correct order
 </IMPORTANT>"""
+
+
+def execute_test_user_prompt(
+    test_name: str,
+    test_description: str,
+    prerequisites: list,
+    steps: list,
+    expected_result: str,
+    priority: str,
+) -> str:
+    return f"""Please execute the following test:
+
+Test Name: {test_name}
+Description: {test_description}
+
+Prerequisites:
+{chr(10).join(f'- {prereq}' for prereq in prerequisites)}
+
+Steps to Execute:
+{chr(10).join(f'{i+1}. {step}' for i, step in enumerate(steps))}
+
+Expected Result:
+{expected_result}
+
+Priority: {priority}
+
+Please follow these steps exactly, take screenshots at key moments, and verify the results carefully."""
