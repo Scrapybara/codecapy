@@ -67,9 +67,11 @@ async def github_webhook(request: Request):
 
     # Handle installation events
     if event_type == "installation":
+        print(data)
         # Get all repositories for this installation
         installation = get_installation(installation_id)
         repos = installation.get_repos()
+        print(repos)
 
         if data.action in ["added", "unsuspend"]:
             # Add each repository to database
