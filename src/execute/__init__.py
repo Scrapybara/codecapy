@@ -464,7 +464,6 @@ class ExecuteAgent:
                     # Check if we have a new passed test
                     if test_result.success:
                         review.passed_tests = (review.passed_tests or 0) + 1
-                    review.total_tests = len(test_results)
                     review = upsert_review(review)
 
                 if test_comment_id:
