@@ -1,19 +1,21 @@
-from typing import Optional
+from typing import Optional, List
 from openai import OpenAI
 from github.PullRequest import PullRequest
 import yaml
 import asyncio
+from datetime import datetime
 
-from ..models import CapyConfig
+from ..models import CapyConfig, Review
 from ..config import settings
 from ..github import add_pr_comment, edit_pr_comment, get_tree_content
-from .models import GenerateResponse, FileAnalysisResponse
+from .models import GenerateResponse, FileAnalysisResponse, TestCase
 from .config import GenerateConfig
 from .prompts import (
     generate_tests_user_prompt,
     analyze_files_user_prompt,
     summarize_file_user_prompt,
 )
+from ..database import upsert_review
 
 
 class GenerateAgent:
@@ -49,7 +51,9 @@ class GenerateAgent:
         except Exception as e:
             return f"## {file.path}\nError reading file: {str(e)}\n"
 
-    async def generate_tests(self, pr: PullRequest) -> Optional[GenerateResponse]:
+    async def generate_tests(
+        self, pr: PullRequest, review: Optional[Review] = None
+    ) -> Optional[GenerateResponse]:
         """Process PR changes and generate test cases."""
         # Add initial comment that we're processing the PR
         summary_comment_id = add_pr_comment(
@@ -118,6 +122,9 @@ class GenerateAgent:
                     raise ValueError("capy.yaml should not be a directory")
                 capy_content = content.decoded_content.decode()
                 capy_config = CapyConfig.model_validate(yaml.safe_load(capy_content))
+                if review:
+                    review.generate.capy_yaml_content = capy_content
+                    review = upsert_review(review)
             except Exception:
                 capy_config = None
 
@@ -149,6 +156,19 @@ class GenerateAgent:
             generate_response = GenerateResponse.model_validate(
                 generate_completion.choices[0].message.parsed
             )
+
+            # Update review if we have one
+            if review:
+                review.generate.codebase_summary = generate_response.codebase_summary
+                review.generate.pr_changes_summary = generate_response.pr_changes
+                review.generate.auto_setup_instructions = (
+                    generate_response.setup_instructions
+                )
+                review.generate.generated_tests = generate_response.tests
+                review.generate.status = "complete"
+                review.generate.completed_at = datetime.now().isoformat()
+                review.total_tests = len(generate_response.tests)
+                review = upsert_review(review)
 
             # Format test results for the comment
             test_details = []
@@ -195,6 +215,7 @@ class GenerateAgent:
 </details>"""
             if summary_comment_id:
                 edit_pr_comment(pr, summary_comment_id, comment)
+
             return generate_response
 
         except Exception as e:
@@ -206,4 +227,9 @@ class GenerateAgent:
 """
             if summary_comment_id:
                 edit_pr_comment(pr, summary_comment_id, error_comment)
+            if review:
+                review.generate.status = "failed"
+                review.generate.error = str(e)
+                review.status = "failed"
+                review = upsert_review(review)
             return None

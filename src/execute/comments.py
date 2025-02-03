@@ -1,8 +1,8 @@
 from typing import List, Optional
-from scrapybara.client import Step
+from ..models import TimestampedStep
 
 
-def format_agent_steps(steps: List[Step]) -> str:
+def format_agent_steps(steps: List[TimestampedStep]) -> str:
     """Format agent steps as code blocks and trim messages to 50 characters."""
     formatted_steps = []
 
@@ -36,7 +36,7 @@ def format_agent_steps(steps: List[Step]) -> str:
     return "\n".join(formatted_steps)
 
 
-def setup_in_progress_comment(steps: List[Step]) -> str:
+def setup_in_progress_comment(steps: List[TimestampedStep]) -> str:
     return f"""🔧 Setting up test environment...
 
 <details>
@@ -53,7 +53,9 @@ def setup_error_comment(error: Optional[str]) -> str:
 ```"""
 
 
-def setup_error_with_steps_comment(error: Optional[str], steps: List[Step]) -> str:
+def setup_error_with_steps_comment(
+    error: Optional[str], steps: List[TimestampedStep]
+) -> str:
     return f"""❌ Error setting up test environment: 
 ```
 {error}
@@ -66,7 +68,7 @@ def setup_error_with_steps_comment(error: Optional[str], steps: List[Step]) -> s
 </details>"""
 
 
-def setup_complete_comment(steps: List[Step]) -> str:
+def setup_complete_comment(steps: List[TimestampedStep]) -> str:
     return f"""✅ Setup complete! Running tests...
 
 <details>
@@ -81,7 +83,7 @@ def test_starting_comment(test_number: int, test_name: str) -> str:
 
 
 def test_in_progress_comment(
-    test_number: int, test_name: str, steps: List[Step]
+    test_number: int, test_name: str, steps: List[TimestampedStep]
 ) -> str:
     return f"""🧪 Running test {test_number}: {test_name}...
 
@@ -98,7 +100,7 @@ def test_result_comment(
     success: bool,
     error: str | None,
     notes: str | None,
-    steps: List[Step],
+    steps: List[TimestampedStep],
 ) -> str:
     status = "✅ Passed" if success else "❌ Failed"
     error_section = f"\nError: {error}" if error else ""

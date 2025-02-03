@@ -58,7 +58,7 @@ start at the home directory and you will have to cd into the repository director
 
 #### `create-env`
 
-Creates a `.env` file and exports environment variables from GitHub Actions. This step is necessary if your environment variables are not accessible in the repository code.
+Creates a `.env` file and exports environment variables from GitHub Actions. This step is required if your environment variables are not accessible in the repository code.
 
 ```yaml
 - type: create-env

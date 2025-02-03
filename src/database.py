@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from supabase import create_client, Client
 from .config import settings
+from .models import Review, Repo
 
 supabase: Optional[Client] = (
     create_client(settings.supabase_url, settings.supabase_key)
@@ -10,43 +11,39 @@ supabase: Optional[Client] = (
 )
 
 
-def upsert_repository(
+def upsert_repo(
     repo_data: Dict[str, Any], installation_id: int, connected: Optional[bool] = None
-) -> Optional[Dict[str, Any]]:
+) -> Optional[Repo]:
     """
     Insert or update a repository in the database.
-    Returns the inserted/updated repository data or None if database is not configured.
+    Returns the inserted/updated repository or None if database is not configured.
     """
     if not supabase:
         return None
 
     try:
-        data = {
-            "id": repo_data["id"],
-            "owner_github_id": repo_data["owner"]["id"],
-            "installation_id": installation_id,
-            "name": repo_data["name"],
-            "owner": repo_data["owner"]["login"],
-            "owner_avatar_url": repo_data["owner"]["avatar_url"],
-            "url": repo_data["html_url"],
-            "is_private": repo_data["private"],
-            "updated_at": datetime.now().isoformat(),
-        }
-        if connected is not None:
-            data["connected"] = connected
+        # Create Repo instance from GitHub data
+        repo = Repo.from_github_data(repo_data, installation_id, connected)
+
+        # Convert to dict for database
+        data = repo.model_dump()
+
+        # Upsert the repository
         result = supabase.table("repos").upsert(data).execute()
-        return result.data[0] if result.data else None
+        if not result.data:
+            return None
+
+        # Convert result back to Repo object
+        return Repo.model_validate(result.data[0])
     except Exception as e:
         print(f"Error upserting repository: {e}")
         return None
 
 
-def get_repos_by_installation_id(
-    installation_id: int,
-) -> Optional[list[Dict[str, Any]]]:
+def get_repos_by_installation_id(installation_id: int) -> Optional[List[Repo]]:
     """
     Get all repositories for a given installation ID.
-    Returns a list of repository data or None if database is not configured.
+    Returns a list of repositories or None if database is not configured.
     """
     if not supabase:
         return None
@@ -58,16 +55,20 @@ def get_repos_by_installation_id(
             .eq("installation_id", installation_id)
             .execute()
         )
-        return result.data if result.data else []
+        if not result.data:
+            return []
+
+        # Convert results to Repo objects
+        return [Repo.model_validate(repo_data) for repo_data in result.data]
     except Exception as e:
         print(f"Error getting repositories: {e}")
         return None
 
 
-def disconnect_repositories(repo_ids: list[int]) -> Optional[list[Dict[str, Any]]]:
+def disconnect_repos(repo_ids: List[int]) -> Optional[List[Repo]]:
     """
     Set the connected status to false for the given repository IDs.
-    Returns the updated repository data or None if database is not configured.
+    Returns the updated repositories or None if database is not configured.
     """
     if not supabase:
         return None
@@ -78,7 +79,38 @@ def disconnect_repositories(repo_ids: list[int]) -> Optional[list[Dict[str, Any]
             "updated_at": datetime.now().isoformat(),
         }
         result = supabase.table("repos").update(data).in_("id", repo_ids).execute()
-        return result.data if result.data else None
+        if not result.data:
+            return None
+
+        # Convert results to Repo objects
+        return [Repo.model_validate(repo_data) for repo_data in result.data]
     except Exception as e:
         print(f"Error disconnecting repositories: {e}")
+        return None
+
+
+def upsert_review(review: Review) -> Optional[Review]:
+    """
+    Insert or update a review in the database.
+    If review.id is None, a new review will be created.
+    Returns the inserted/updated review or None if database is not configured.
+    """
+    if not supabase:
+        return None
+
+    try:
+        # Convert review to dict, preserving nested structure
+        data = review.model_dump()
+        data["updated_at"] = datetime.now().isoformat()
+
+        # Upsert the review
+        result = supabase.table("reviews").upsert(data).execute()
+
+        if not result.data:
+            return None
+
+        # Convert the result back to a Review object
+        return Review.model_validate(result.data[0])
+    except Exception as e:
+        print(f"Error upserting review: {e}")
         return None

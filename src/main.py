@@ -1,6 +1,8 @@
+from typing import Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security import HTTPBearer
 from github import Github
+from datetime import datetime
 
 from .execute.config import ExecuteConfig
 from .generate.config import GenerateConfig
@@ -13,10 +15,12 @@ from .github import (
 from .generate import GenerateAgent
 from .execute import ExecuteAgent
 from .database import (
-    upsert_repository,
+    upsert_repo,
     get_repos_by_installation_id,
-    disconnect_repositories,
+    disconnect_repos,
+    upsert_review,
 )
+from .models import Review
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -58,8 +62,8 @@ async def github_webhook(request: Request):
             db_repos = get_repos_by_installation_id(installation_id)
             if db_repos:
                 # Disconnect all stored repos for the given installation
-                removed_repo_ids = [repo["id"] for repo in db_repos]
-                disconnect_repositories(removed_repo_ids)
+                removed_repo_ids = [repo.id for repo in db_repos]
+                disconnect_repos(removed_repo_ids)
             return {"status": "ok"}
 
         access_token = get_installation_access_token(installation_id)
@@ -74,7 +78,7 @@ async def github_webhook(request: Request):
         if data.action in ["created", "unsuspend"]:
             # Add each repository to database
             for repo in repos:
-                upsert_repository(repo.raw_data, installation_id, True)
+                upsert_repo(repo.raw_data, installation_id, True)
 
     # Handle repository events
     elif event_type == "installation_repositories":
@@ -85,7 +89,7 @@ async def github_webhook(request: Request):
         if data.action == "added":
             # Add each repository to database
             for repo in repos:
-                upsert_repository(repo.raw_data, installation_id, True)
+                upsert_repo(repo.raw_data, installation_id, True)
         elif data.action == "removed":
             # Get all repos from database for this installation
             db_repos = get_repos_by_installation_id(installation_id)
@@ -94,13 +98,11 @@ async def github_webhook(request: Request):
                 current_repo_ids = [repo.id for repo in repos]
                 # Find repos that are in DB but no longer in GitHub
                 removed_repo_ids = [
-                    repo["id"]
-                    for repo in db_repos
-                    if repo["id"] not in current_repo_ids
+                    repo.id for repo in db_repos if repo.id not in current_repo_ids
                 ]
                 # Disconnect removed repos
                 if removed_repo_ids:
-                    disconnect_repositories(removed_repo_ids)
+                    disconnect_repos(removed_repo_ids)
 
     elif event_type == "repository":
         # Handle repository metadata changes
@@ -111,9 +113,9 @@ async def github_webhook(request: Request):
         ):
             # Update repository in database with latest data
             repo = github.get_repo(data.repository["full_name"])
-            upsert_repository(repo.raw_data, installation_id)
+            upsert_repo(repo.raw_data, installation_id)
         elif data.action == "deleted" and data.repository:
-            disconnect_repositories([data.repository["id"]])
+            disconnect_repos([data.repository["id"]])
 
     # Handle pull request events
     elif event_type == "pull_request" and data.action in ["opened", "synchronize"]:
@@ -123,10 +125,22 @@ async def github_webhook(request: Request):
         repo = github.get_repo(data.repository["full_name"])
         pr = repo.get_pull(data.pull_request["number"])
 
-        # Process PR changes
-        tests = await generate_agent.generate_tests(pr)
-        if tests:
-            await execute_agent.execute_tests(pr, tests, access_token)
+        # Create review if we have a database
+        current_time = datetime.now().isoformat()
+        pending_review = Review.create_pending(
+            repo_id=data.repository["id"],
+            pr_number=pr.number,
+            commit_sha=pr.head.sha,
+            current_time=current_time,
+        )
+        review = upsert_review(pending_review)
+
+        # Generate tests
+        gr = await generate_agent.generate_tests(pr, review)
+
+        # Execute tests if we have them
+        if gr:
+            await execute_agent.execute_tests(pr, gr, access_token, review)
 
     return {"status": "ok"}
 
