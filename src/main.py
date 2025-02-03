@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security import HTTPBearer
-from github import Github, Auth
+from github import Github
 
 from .execute.config import ExecuteConfig
 from .generate.config import GenerateConfig
@@ -70,10 +70,10 @@ async def github_webhook(request: Request):
             db_repos = get_repos_by_installation_id(installation_id)
             if db_repos:
                 # Get current repo IDs from GitHub
-                current_repo_ids = [str(repo.id) for repo in repos]
+                current_repo_ids = [repo.id for repo in repos]
                 # Find repos that are in DB but no longer in GitHub
                 removed_repo_ids = [
-                    int(repo["id"])
+                    repo["id"]
                     for repo in db_repos
                     if repo["id"] not in current_repo_ids
                 ]
@@ -99,7 +99,7 @@ async def github_webhook(request: Request):
                 current_repo_ids = [repo.id for repo in repos]
                 # Find repos that are in DB but no longer in GitHub
                 removed_repo_ids = [
-                    int(repo["id"])
+                    repo["id"]
                     for repo in db_repos
                     if repo["id"] not in current_repo_ids
                 ]
