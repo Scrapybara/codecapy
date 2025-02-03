@@ -26,7 +26,7 @@ def upsert_repo(
         repo = Repo.from_github_data(repo_data, installation_id, connected)
 
         # Convert to dict for database
-        data = repo.model_dump()
+        data = repo.model_dump(exclude_none=True)
 
         # Upsert the repository
         result = supabase.table("repos").upsert(data).execute()
@@ -100,7 +100,7 @@ def upsert_review(review: Review) -> Optional[Review]:
 
     try:
         # Convert review to dict, preserving nested structure
-        data = review.model_dump()
+        data = review.model_dump(exclude_none=True)
         data["updated_at"] = datetime.now().isoformat()
 
         # Upsert the review

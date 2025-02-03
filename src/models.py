@@ -43,43 +43,31 @@ class ReviewPhase(BaseModel):
 class GeneratePhase(ReviewPhase):
     """Generation phase of the review"""
 
-    codebase_summary: str = Field(
-        description="A summary of what the repository is for and how it works"
-    )
-    pr_changes_summary: str = Field(
-        description="An overview of the changes made to the codebase in the PR"
-    )
-    generated_tests: List[TestCase] = Field(
-        description="Test cases generated before execution"
-    )
-    auto_setup_instructions: Optional[str] = Field(
-        description="Natural language instructions for setting up the test environment when capy.yaml is not present"
-    )
-    capy_yaml_content: Optional[str] = Field(
-        description="Content of the capy.yaml file if it exists"
-    )
+    codebase_summary: Optional[str] = None
+    pr_changes_summary: Optional[str] = None
+    generated_tests: Optional[List[TestCase]] = None
+    auto_setup_instructions: Optional[str] = None
+    capy_yaml_content: Optional[str] = None
 
 
 class SetupPhase(ReviewPhase):
     """Setup phase of the review"""
 
-    steps: List[TimestampedStep]
+    steps: Optional[List[TimestampedStep]] = None
 
 
 class TestResult(BaseTestResult):
     """Extended test result that includes execution steps"""
 
-    test_number: int = Field(description="The sequential number of the test")
-    test_name: str = Field(description="Name of the test that was executed")
-    steps: List[TimestampedStep] = Field(
-        description="Steps taken during test execution"
-    )
+    test_number: int
+    test_name: str
+    steps: Optional[List[TimestampedStep]] = None
 
 
 class ExecutePhase(ReviewPhase):
     """Test execution phase of the review"""
 
-    test_results: List[TestResult] = Field(description="Results of all test executions")
+    test_results: Optional[List[TestResult]] = None
 
 
 class Review(BaseModel):
@@ -87,10 +75,11 @@ class Review(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: Optional[str]
+    id: Optional[str] = None
     repo_id: int
     pr_number: int
     commit_sha: str
+    instance_id: Optional[str] = None
     started_at: str
     completed_at: Optional[str] = None
     status: Literal["pending", "in_progress", "complete", "failed"] = "pending"
@@ -108,25 +97,24 @@ class Review(BaseModel):
         generate_phase = GeneratePhase(
             status="in_progress",
             started_at=current_time,
-            codebase_summary="",
-            pr_changes_summary="",
-            generated_tests=[],
+            codebase_summary=None,
+            pr_changes_summary=None,
+            generated_tests=None,
             auto_setup_instructions=None,
             capy_yaml_content=None,
         )
 
         setup_phase = SetupPhase(
             status="pending",
-            steps=[],
+            steps=None,
         )
 
         execute_phase = ExecutePhase(
             status="pending",
-            test_results=[],
+            test_results=None,
         )
 
         return cls(
-            id=None,  # Will be set after DB insert
             repo_id=repo_id,
             pr_number=pr_number,
             commit_sha=commit_sha,

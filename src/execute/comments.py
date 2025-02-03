@@ -46,16 +46,14 @@ def setup_in_progress_comment(steps: List[TimestampedStep]) -> str:
 </details>"""
 
 
-def setup_error_comment(error: Optional[str]) -> str:
-    return f"""❌ Error setting up test environment: 
+def error_comment(error: Optional[str]) -> str:
+    return f"""❌ Something went wrong: 
 ```
 {error}
 ```"""
 
 
-def setup_error_with_steps_comment(
-    error: Optional[str], steps: List[TimestampedStep]
-) -> str:
+def setup_error_comment(error: Optional[str], steps: List[TimestampedStep]) -> str:
     return f"""❌ Error setting up test environment: 
 ```
 {error}
@@ -135,8 +133,16 @@ def launching_desktop_comment() -> str:
     return "🚀 Launching Scrapybara desktop..."
 
 
-def launching_desktop_error_comment(error: str) -> str:
-    return f"""🚀 Launching Scrapybara desktop...
+def launching_desktop_instance_comment(stream_url: str) -> str:
+    return f"""🚀 Scrapybara Ubuntu instance started!
+
+<a href="{stream_url}">Interactive stream</a>"""
+
+
+def launching_desktop_error_comment(stream_url: str, error: str) -> str:
+    return f"""🚀 Scrapybara Ubuntu instance started!
+
+<a href="{stream_url}">Interactive stream</a>
 
 ⚠️ Error fetching GitHub variables, continuing setup: 
 ```

@@ -17,9 +17,10 @@ from .prompts import (
     execute_test_user_prompt,
 )
 from .comments import (
+    launching_desktop_instance_comment,
     setup_in_progress_comment,
+    error_comment,
     setup_error_comment,
-    setup_error_with_steps_comment,
     setup_complete_comment,
     test_starting_comment,
     test_result_comment,
@@ -88,10 +89,14 @@ class ExecuteAgent:
         if self._review:
             # Find or create the test result for this test
             test_result = None
-            for result in self._review.execute.test_results:
-                if result.test_number == test_number and result.test_name == test_name:
-                    test_result = result
-                    break
+            if self._review.execute.test_results:
+                for result in self._review.execute.test_results:
+                    if (
+                        result.test_number == test_number
+                        and result.test_name == test_name
+                    ):
+                        test_result = result
+                        break
 
             if not test_result:
                 # Create a new test result if it doesn't exist
@@ -103,7 +108,10 @@ class ExecuteAgent:
                     error=None,
                     notes=None,
                 )
-                self._review.execute.test_results.append(test_result)
+                if self._review.execute.test_results:
+                    self._review.execute.test_results.append(test_result)
+                else:
+                    self._review.execute.test_results = [test_result]
 
             # Update the steps for this test result
             test_result.steps = steps
@@ -124,17 +132,31 @@ class ExecuteAgent:
         review: Optional[Review] = None,
     ) -> bool:
         """Execute the generated UI tests and report results."""
-        setup_comment_id = add_pr_comment(pr, launching_desktop_comment())
+        launching_desktop_comment_id = add_pr_comment(pr, launching_desktop_comment())
         self._review = review
 
         # Start setup phase immediately
         if review:
+            review.generate.status = "complete"
             review.setup.status = "in_progress"
             review.setup.started_at = datetime.now().isoformat()
             review = upsert_review(review)
 
         try:
             self.instance = self.scrapybara_client.start(instance_type="large")
+
+            if review:
+                review.instance_id = self.instance.id
+                review = upsert_review(review)
+
+            if launching_desktop_comment_id:
+                edit_pr_comment(
+                    pr,
+                    launching_desktop_comment_id,
+                    launching_desktop_instance_comment(
+                        self.instance.get_stream_url().stream_url
+                    ),
+                )
 
             # Get repo details and access token
             repo_name = pr.base.repo.full_name
@@ -172,14 +194,17 @@ class ExecuteAgent:
                 setup_steps.append(current_step)
                 if review:
                     review.setup.steps = setup_steps
+                    review.instance_id = self.instance.id
                     review = upsert_review(review)
 
             except Exception as e:
-                if setup_comment_id:
+                if launching_desktop_comment_id:
                     edit_pr_comment(
                         pr,
-                        setup_comment_id,
-                        launching_desktop_error_comment(str(e)),
+                        launching_desktop_comment_id,
+                        launching_desktop_error_comment(
+                            self.instance.get_stream_url().stream_url, str(e)
+                        ),
                     )
 
             # Get capy.yaml content
@@ -203,12 +228,10 @@ class ExecuteAgent:
                 capy_config = None
 
             # Run setup
-            if setup_comment_id:
-                edit_pr_comment(
-                    pr,
-                    setup_comment_id,
-                    setup_in_progress_comment([]),
-                )
+            setup_comment_id = add_pr_comment(
+                pr,
+                setup_in_progress_comment([]),
+            )
 
             if not capy_config:
                 # Use old setup method with natural language instructions
@@ -243,7 +266,7 @@ class ExecuteAgent:
                         review = upsert_review(review)
                     add_pr_comment(
                         pr,
-                        setup_error_comment(setup_response.output.setup_error),
+                        error_comment(setup_response.output.setup_error),
                     )
                     return False
             else:
@@ -336,9 +359,7 @@ class ExecuteAgent:
                             edit_pr_comment(
                                 pr,
                                 setup_comment_id,
-                                setup_error_with_steps_comment(
-                                    setup_error, setup_steps
-                                ),
+                                setup_error_comment(setup_error, setup_steps),
                             )
                         return False
 
@@ -352,7 +373,7 @@ class ExecuteAgent:
                         edit_pr_comment(
                             pr,
                             setup_comment_id,
-                            setup_error_with_steps_comment(str(e), setup_steps),
+                            setup_error_comment(str(e), setup_steps),
                         )
                     return False
 
@@ -372,6 +393,7 @@ class ExecuteAgent:
 
             # Start execute phase if we have a review
             if review:
+                review.setup.status = "complete"
                 review.execute.status = "in_progress"
                 review.execute.started_at = datetime.now().isoformat()
                 review = upsert_review(review)
@@ -412,7 +434,7 @@ class ExecuteAgent:
 
                 # Get the test result that was created during step handling
                 test_result = None
-                if review:
+                if review and review.execute.test_results:
                     for result in review.execute.test_results:
                         if result.test_number == i and result.test_name == test.name:
                             test_result = result
@@ -455,7 +477,7 @@ class ExecuteAgent:
                             test_result.success,
                             test_result.error,
                             test_result.notes,
-                            test_result.steps,
+                            test_result.steps or [],
                         ),
                     )
 
@@ -493,7 +515,7 @@ class ExecuteAgent:
                 review = upsert_review(review)
             add_pr_comment(
                 pr,
-                setup_error_comment(str(e)),
+                error_comment(str(e)),
             )
             return False
         finally:
