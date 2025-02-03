@@ -13,39 +13,75 @@
   <ul style="list-style: none">
     <summary>
       <h3>The only PR bot that <i>actually</i> tests your code.</h3>
+      <p>CodeCapy automatically detects new PRs, generates natural language end-to-end UI tests based on code changes, executes tests in isolated Scrapybara instances, posts test results to PR comments, and more.</p>
     </summary>
   </ul>
 </div>
-
-## How CodeCapy works
-
-- [Install](#get-started) CodeCapy on your GitHub repository
-- CodeCapy automatically detects new PRs
-- Generates natural language end-to-end UI tests based on PR changes using OpenAI models
-- Executes tests in isolated Scrapybara VMs using Anthropic's Claude Computer Use capabilities
-- Posts test results as PR comments
 
 <img src="images/github.png" alt="CodeCapy on GitHub" />
 
 ## Get Started
 
-- Connect to your GitHub account on the [CodeCapy dashboard](https://codecapy.ai)
-- Or install CodeCapy directly on [GitHub](https://github.com/apps/codecapyai)
+1. Connect your GitHub repositories on the [CodeCapy dashboard](https://codecapy.ai)
+2. Or install CodeCapy directly on [GitHub](https://github.com/apps/codecapyai)
+3. Add environment variables to your GitHub Action variables
+4. Configure test environment setup by adding a `capy.yaml` file (highly recommended)
 
 ## Test Configuration
 
-You can configure test environment setup by adding a `capy.yaml` file to the root of your repository:
+To best configure your testing environment, add a `capy.yaml` file to the root of your repository:
 
 ```yaml
 steps:
   - type: bash
-    command: "npm install"
+    command: "cd {{repo_dir}}"
   - type: create-env
+  - type: bash
+    command: "npm install"
   - type: instruction
-    text: "Set up the development environment"
+    text: "Open the browser and navigate to http://localhost:3000"
   - type: wait
     seconds: 10
 ```
+
+### Step Types
+
+#### `bash`
+
+Executes shell commands in the test environment. Useful for installing dependencies, building projects, or any other command-line operations. Use `{{repo_dir}}` to refer to the repository directory.
+
+```yaml
+- type: bash
+  command: "cd {{repo_dir}} && npm install" # Any valid shell command
+```
+
+#### `create-env`
+
+Creates a `.env` file and exports environment variables from GitHub Actions. This step is necessary if your environment variables are not accessible in the repository code.
+
+```yaml
+- type: create-env
+```
+
+#### `instruction`
+
+Provides natural language instructions to the test agent. These instructions are interpreted and executed by the execution agent to perform complex setup tasks that might require multiple steps or decision-making.
+
+```yaml
+- type: instruction
+  text: "Open the browser and navigate to http://localhost:3000" # Natural language instruction
+```
+
+#### `wait`
+
+Adds a delay between steps, useful when waiting for services to start up or for certain operations to complete.
+
+```yaml
+- type: wait
+  seconds: 10 # Delay in seconds
+```
+
+The steps are executed in sequence, and you can combine them in any order to create your desired test environment setup. If a `capy.yaml` is not found, the execution agent will infer the setup process with existing GitHub Actions variables.
 
 ## Roadmap
 
