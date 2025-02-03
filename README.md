@@ -27,6 +27,13 @@
 
 <img src="images/github.png" alt="CodeCapy on GitHub" />
 
+## Roadmap
+
+- [ ] More generate models (Anthropic, Gemini, etc.)
+- [ ] More execute models on the Act SDK (UI-TARS, CUA, etc.)
+- [ ] Windows instance
+- [ ] MacOS instance
+
 ## Setup
 
 ### Prerequisites
