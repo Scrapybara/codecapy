@@ -6,9 +6,10 @@
   "files": [
     "README.md"
   ],
-  "imageSize": 100,
-  "commit": true,
-  "commitConvention": "none",
+  "imageSize": 50,
+  "badgeTemplate": "<img alt='All Contributors' src='https://img.shields.io/badge/All_contributors-<%= contributors.length %>-yellow.svg?style=flat-square' />",
+  "contributorTemplate": "<a href=\"<%= contributor.profile %>\"><img src=\"<%= contributor.avatar_url %>\" width=\"<%= options.imageSize %>px;\" alt=\"\"/><br /></a>",
+  "commit": false,
   "contributors": [
     {
       "login": "justinsunyt",
@@ -20,6 +21,5 @@
       ]
     }
   ],
-  "contributorsPerLine": 7,
-  "linkToUsage": true
+  "contributorsPerLine": 7
 }
