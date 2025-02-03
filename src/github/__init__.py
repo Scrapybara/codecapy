@@ -5,6 +5,7 @@ from fastapi import HTTPException, Request
 from github import GithubIntegration
 from github.PullRequest import PullRequest
 from github.IssueComment import IssueComment
+from github.Installation import Installation
 from ..config import settings
 
 
@@ -16,6 +17,12 @@ def get_github_integration() -> GithubIntegration:
     )
 
 
+def get_installation(installation_id: int) -> Installation:
+    """Get a GitHub App installation."""
+    integration = get_github_integration()
+    return integration.get_app_installation(installation_id)
+
+
 def get_installation_access_token(installation_id: int) -> str:
     """Get an access token for a GitHub App installation."""
     integration = get_github_integration()
@@ -25,11 +32,6 @@ def get_installation_access_token(installation_id: int) -> str:
 
 def verify_github_webhook(request: Request, payload: Optional[bytes] = None) -> None:
     """Verify GitHub webhook signature."""
-    if not settings.github_webhook_secret:
-        raise HTTPException(
-            status_code=500, detail="GitHub webhook secret not configured"
-        )
-
     signature = request.headers.get("X-Hub-Signature-256")
     if not signature:
         raise HTTPException(status_code=400, detail="No signature header found")

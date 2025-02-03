@@ -1,14 +1,22 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.security import HTTPBearer
-from github import Github
+from github import Github, Auth
 
 from .execute.config import ExecuteConfig
 from .generate.config import GenerateConfig
 from .github.models import GitHubWebhookPayload
-from .github import verify_github_webhook, get_installation_access_token
+from .github import (
+    get_installation,
+    verify_github_webhook,
+    get_installation_access_token,
+)
 from .generate import GenerateAgent
 from .execute import ExecuteAgent
-from .database import upsert_repository, delete_repository
+from .database import (
+    upsert_repository,
+    get_repos_by_installation_id,
+    disconnect_repositories,
+)
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -37,7 +45,6 @@ async def github_webhook(request: Request):
         "installation",
         "installation_repositories",
         "repository",
-        "installation_target",
         "pull_request",
     ]:
         if not data.installation or "id" not in data.installation:
@@ -50,26 +57,55 @@ async def github_webhook(request: Request):
 
     # Handle installation events
     if event_type == "installation":
-        if data.action == "created":
-            # Add all repositories to database
-            for repo_data in data.repositories or []:
-                repo = github.get_repo(repo_data["full_name"])
-                upsert_repository(repo.raw_data)
-        elif data.action == "deleted":
-            # Remove all repositories from database
-            for repo_data in data.repositories or []:
-                delete_repository(repo_data["id"])
+        # Get all repositories for this installation
+        installation = get_installation(installation_id)
+        repos = installation.get_repos()
+
+        if data.action == "added":
+            # Add each repository to database
+            for repo in repos:
+                upsert_repository(repo.raw_data, installation_id, True)
+        elif data.action == "removed":
+            # Get all repos from database for this installation
+            db_repos = get_repos_by_installation_id(installation_id)
+            if db_repos:
+                # Get current repo IDs from GitHub
+                current_repo_ids = [str(repo.id) for repo in repos]
+                # Find repos that are in DB but no longer in GitHub
+                removed_repo_ids = [
+                    int(repo["id"])
+                    for repo in db_repos
+                    if repo["id"] not in current_repo_ids
+                ]
+                # Disconnect removed repos
+                if removed_repo_ids:
+                    disconnect_repositories(removed_repo_ids)
 
     # Handle repository events
     elif event_type == "installation_repositories":
-        # Handle repositories being added/removed from installation
-        if data.action == "added" and data.repository:
-            # Add repository to database
-            repo = github.get_repo(data.repository["full_name"])
-            upsert_repository(repo.raw_data)
-        elif data.action == "removed" and data.repository:
-            # Remove repository from database
-            delete_repository(data.repository["id"])
+        # Get all repositories for this installation
+        installation = get_installation(installation_id)
+        repos = installation.get_repos()
+
+        if data.action == "added":
+            # Add each repository to database
+            for repo in repos:
+                upsert_repository(repo.raw_data, installation_id, True)
+        elif data.action == "removed":
+            # Get all repos from database for this installation
+            db_repos = get_repos_by_installation_id(installation_id)
+            if db_repos:
+                # Get current repo IDs from GitHub
+                current_repo_ids = [repo.id for repo in repos]
+                # Find repos that are in DB but no longer in GitHub
+                removed_repo_ids = [
+                    int(repo["id"])
+                    for repo in db_repos
+                    if repo["id"] not in current_repo_ids
+                ]
+                # Disconnect removed repos
+                if removed_repo_ids:
+                    disconnect_repositories(removed_repo_ids)
 
     elif event_type == "repository":
         # Handle repository metadata changes
@@ -80,18 +116,9 @@ async def github_webhook(request: Request):
         ):
             # Update repository in database with latest data
             repo = github.get_repo(data.repository["full_name"])
-            upsert_repository(repo.raw_data)
+            upsert_repository(repo.raw_data, installation_id)
         elif data.action == "deleted" and data.repository:
-            # Remove repository from database
-            delete_repository(data.repository["id"])
-
-    # Handle installation target changes
-    elif event_type == "installation_target":
-        # Update all repositories for this installation to reflect new ownership
-        if data.repositories:
-            for repo_data in data.repositories:
-                repo = github.get_repo(repo_data["full_name"])
-                upsert_repository(repo.raw_data)
+            disconnect_repositories([data.repository["id"]])
 
     # Handle pull request events
     elif event_type == "pull_request" and data.action in ["opened", "synchronize"]:
