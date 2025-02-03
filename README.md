@@ -1,25 +1,28 @@
+<img src="images/logo.png" alt="CodeCapy" />
+
+<p align="center">
+  <a href="https://codecapy.ai"><img alt="Get started" src="https://img.shields.io/badge/Get%20started-codecapy.ai-cyan" /></a>
+  <a href="https://github.com/scrapybara/scrapybara-playground/blob/main/license"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue" /></a>
+  <a href="https://discord.gg/s4bPUVFXqA"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20the%20community-purple.svg?logo=discord" /></a>
+</p>
+
 <div id="toc" align="center">
   <ul style="list-style: none">
     <summary>
-      <h1>CodeCapy</h1>
+      <h3>The only PR bot that <i>actually</i> tests your code.</h3>
     </summary>
   </ul>
 </div>
 
-<p align="center">
-  The only PR bot that *actually* tests your code. CodeCapy is a GitHub app that automatically generates and runs natural language end-to-end UI tests for pull requests with Scrapybara VMs.
-</p>
+## How CodeCapy works
 
-<p align="center">
-  <a href="https://codecapy.ai"><img alt="Get started" src="https://img.shields.io/badge/Get%20started-codecapy.ai-blue" /></a>
-</p>
-
-## Features
-
-- Automatically detects new PRs and PR updates
-- Generates natural language tests based on PR changes using OpenAI models
+- Install CodeCapy on your GitHub repository
+- CodeCapy automatically detects new PRs
+- Generates natural language end-to-end UI tests based on PR changes using OpenAI models
 - Executes tests in isolated Scrapybara VMs using Anthropic's Claude Computer Use capabilities
 - Posts test results as PR comments
+
+<img src="images/github.png" alt="CodeCapy on GitHub" />
 
 ## Setup
 
@@ -156,11 +159,9 @@ steps:
     seconds: 10
 ```
 
-## Development
+## Contributing
 
-- Format code: `poetry run black .`
-- Type checking: `poetry run mypy`
-- Run tests: `poetry run pytest`
+We <3 all contributions! Create an issue or submit a PR to get started, or join our [Discord](https://discord.gg/s4bPUVFXqA) to chat with us.
 
 ## License
 
