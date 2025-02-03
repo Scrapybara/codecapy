@@ -53,7 +53,7 @@ start at the home directory and you will have to cd into the repository director
 
 ```yaml
 - type: bash
-  command: "cd {{repo_dir}} && npm install" # Any valid shell command
+  command: cd {{repo_dir}} && npm install # Any valid shell command
 ```
 
 #### `create-env`
@@ -66,11 +66,11 @@ Creates a `.env` file and exports environment variables from GitHub Actions. Thi
 
 #### `instruction`
 
-Provides natural language instructions to the test agent. These instructions are interpreted and executed by the execution agent to perform complex setup tasks that might require multiple steps or decision-making.
+Provides natural language instructions to the test agent. These instructions are interpreted and executed by the execution agent to perform complex setup tasks that might require multiple steps or decision-making. If necessary, give the agent login credentials to sign in to your application.
 
 ```yaml
 - type: instruction
-  text: "Open the browser and navigate to http://localhost:3000" # Natural language instruction
+  text: Open the browser and navigate to http://localhost:3000 # Natural language instruction
 ```
 
 #### `wait`
