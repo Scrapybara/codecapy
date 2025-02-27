@@ -5,7 +5,7 @@ from github.PullRequest import PullRequest
 from scrapybara import Scrapybara
 from scrapybara.anthropic import Anthropic
 from scrapybara.tools import ComputerTool, BashTool, EditTool
-from scrapybara.client import Step, Instance
+from scrapybara.client import Step, UbuntuInstance
 from ..config import settings
 from ..github import add_pr_comment, edit_pr_comment
 from ..generate import GenerateResponse
@@ -38,7 +38,7 @@ class ExecuteAgent:
     def __init__(self, config: ExecuteConfig):
         self.config = config
         self.scrapybara_client = Scrapybara(api_key=settings.scrapybara_api_key)
-        self.instance: Optional[Instance] = None
+        self.instance: Optional[UbuntuInstance] = None
         self._review: Optional[Review] = None
 
     def handle_setup_step(
@@ -143,7 +143,7 @@ class ExecuteAgent:
             review = upsert_review(review)
 
         try:
-            self.instance = self.scrapybara_client.start(instance_type="large")
+            self.instance = self.scrapybara_client.start_ubuntu()
 
             if review:
                 review.instance_id = self.instance.id

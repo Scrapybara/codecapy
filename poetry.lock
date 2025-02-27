@@ -136,13 +136,13 @@ files = [
 
 [[package]]
 name = "anthropic"
-version = "0.39.0"
+version = "0.47.2"
 description = "The official Python library for the anthropic API"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "anthropic-0.39.0-py3-none-any.whl", hash = "sha256:ea17093ae0ce0e1768b0c46501d6086b5bcd74ff39d68cd2d6396374e9de7c09"},
-    {file = "anthropic-0.39.0.tar.gz", hash = "sha256:94671cc80765f9ce693f76d63a97ee9bef4c2d6063c044e983d21a2e262f63ba"},
+    {file = "anthropic-0.47.2-py3-none-any.whl", hash = "sha256:61b712a56308fce69f04d92ba0230ab2bc187b5bce17811d400843a8976bb67f"},
+    {file = "anthropic-0.47.2.tar.gz", hash = "sha256:452f4ca0c56ffab8b6ce9928bf8470650f88106a7001b250895eb65c54cfa44c"},
 ]
 
 [package.dependencies]
@@ -152,7 +152,7 @@ httpx = ">=0.23.0,<1"
 jiter = ">=0.4.0,<1"
 pydantic = ">=1.9.0,<3"
 sniffio = "*"
-typing-extensions = ">=4.7,<5"
+typing-extensions = ">=4.10,<5"
 
 [package.extras]
 bedrock = ["boto3 (>=1.28.57)", "botocore (>=1.31.57)"]
@@ -1845,17 +1845,17 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "scrapybara"
-version = "2.1.3"
+version = "2.2.9"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "scrapybara-2.1.3-py3-none-any.whl", hash = "sha256:a8ec7514614a66dd30a705110adecdfe717c5ba235c293f69cfd85e6f8f92710"},
-    {file = "scrapybara-2.1.3.tar.gz", hash = "sha256:f815c2611316afea550571176ac9b4f732441a4a3265068f8d71a89916e1aa5d"},
+    {file = "scrapybara-2.2.9-py3-none-any.whl", hash = "sha256:9f8c47fde3c72c9b9ff34c2534974962dc1ba4884424478674399b031791c881"},
+    {file = "scrapybara-2.2.9.tar.gz", hash = "sha256:66267e014c91ab58227eb099137681df6da4b1ababb25d156465af13c6259944"},
 ]
 
 [package.dependencies]
-anthropic = ">=0.39.0,<0.40.0"
+anthropic = ">=0.47.2,<0.48.0"
 httpx = ">=0.21.2"
 playwright = ">=1.48.0,<2.0.0"
 pydantic = ">=1.9.2"
@@ -2341,4 +2341,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "e5c18280a7808b519a154920b0758bb0cf52e6e370a2bb7c37187e253fa38e01"
+content-hash = "e2ef62e62e3b3277856d657734a37d40b7adb54bbebf347bc2a7134324f6f6da"
