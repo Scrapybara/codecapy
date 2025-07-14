@@ -1,6 +1,6 @@
 <img src="images/logo.png" alt="CodeCapy" />
 
-this is test 1
+this is test 2
 
 <p align="center">
   <a href="https://codecapy.ai"><img alt="Get started" src="https://img.shields.io/badge/Get%20started-codecapy.ai-cyan" /></a>
