@@ -1,27 +1,10 @@
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from scrapybara.client import Step
 from .generate.models import TestCase
 from .execute.models import TestResult as BaseTestResult
+from .capy_config import CapyConfig, CapyStep
 from datetime import datetime
-
-
-# capy.yaml
-class CapyStep(BaseModel):
-    """capy.yaml step"""
-
-    type: Literal["bash", "create-env", "instruction", "wait"] = Field(
-        description="Type of step to execute"
-    )
-    command: Optional[str] = None
-    text: Optional[str] = None
-    seconds: Optional[int] = None
-
-
-class CapyConfig(BaseModel):
-    """capy.yaml config"""
-
-    steps: List[CapyStep]
 
 
 # Review
