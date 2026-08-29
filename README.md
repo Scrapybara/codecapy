@@ -12,8 +12,8 @@
 <div id="toc" align="center">
   <ul style="list-style: none">
     <summary>
-      <h3>The only PR bot that <i>actually</i> tests your code.</h3>
-      <p>CodeCapy automatically detects new PRs, generates natural language end-to-end UI tests based on code changes, executes tests in isolated Scrapybara instances, posts test results to PR comments, and more.</p>
+      <h3>A PR bot that <i>actually</i> tests your code.</h3>
+      <p>CodeCapy automatically detects new PRs, generates natural-language end-to-end UI tests from code changes, runs them in isolated Scrapybara instances, and posts the results as PR comments.</p>
     </summary>
   </ul>
 </div>
